@@ -23,3 +23,4 @@ alias la='ls -la'
 alias update-uv='curl -LsSf https://astral.sh/uv/install.sh | sh'
 
 [ -f ~/.bash_local ] && . ~/.bash_local
+. "$HOME/.local/bin/env"
