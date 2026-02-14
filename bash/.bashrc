@@ -17,10 +17,14 @@
 # alias cp='cp -i'
 # alias mv='mv -i'
 
+# export LC_ALL=ja_JP.UTF-8
+# export LANG=ja_JP.UTF-8alias ls='ls --color=auto'
 alias ls='ls --color=auto'
 alias ll='ls -l'
 alias la='ls -la'
 alias update-uv='curl -LsSf https://astral.sh/uv/install.sh | sh'
-
+alias gemini-ask-uvx='uvx git+https://github.com/oknrtks/gemini-ask'
+alias yahoo-search-uvx='uvx git+https://github.com/oknrtks/yahoo-search'
 [ -f ~/.bash_local ] && . ~/.bash_local
+
 . "$HOME/.local/bin/env"
