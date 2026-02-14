@@ -25,6 +25,7 @@ alias la='ls -la'
 alias update-uv='curl -LsSf https://astral.sh/uv/install.sh | sh'
 alias gemini-ask-uvx='uvx git+https://github.com/oknrtks/gemini-ask'
 alias yahoo-search-uvx='uvx git+https://github.com/oknrtks/yahoo-search'
-[ -f ~/.bash_local ] && . ~/.bash_local
 
-. "$HOME/.local/bin/env"
+[ -f ~/.bash_local ] && . ~/.bash_local
+[ -f ~/.local/bin/env ] && . ~/.local/bin/env
+
