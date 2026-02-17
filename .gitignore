@@ -1,5 +1,4 @@
 .env
-.claude
 .bash_local
 *.swp
 .DS_Store
