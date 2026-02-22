@@ -1,0 +1,23 @@
+{
+  "_comment": "設定ファイル: ntfy_urlのYOUR_TOPIC_NAMEを実際のトピック名に書き換えてください",
+  "_comment_debug": "debug_mode: trueにすると標準出力に詳細ログが出力されます。トラブルシューティング時に使用してください。",
+  "ntfy_url": "https://ntfy.sh/YOUR_TOPIC_NAME",
+  "debug_mode": false,
+  "events": {
+    "Notification": {
+      "priority": 5,
+      "title": "Claude: Input Required",
+      "tags": "warning,computer"
+    },
+    "Stop": {
+      "priority": 4,
+      "title": "Claude: Task Stopped",
+      "tags": "checkmark,tada"
+    },
+    "Error": {
+      "priority": 5,
+      "title": "Claude: ERROR",
+      "tags": "x,fire"
+    }
+  }
+}
