@@ -10,17 +10,15 @@ Gemini AI（Google）に意見や情報を求める際に使用する。
 ## 実行方法
 
 ```bash
-gemini-ask-uvx "質問内容"
+uvx git+https://github.com/oknrtks/gemini-ask "質問内容"
 ```
-
-`gemini-ask-uvx`は`uvx git+https://github.com/oknrtks/gemini-ask`のエイリアス。
 
 ## モデル指定
 
 ユーザーが特定のモデルを指定した場合：
 
 ```bash
-gemini-ask-uvx "質問内容" --model "gemini-2.5-pro"
+uvx git+https://github.com/oknrtks/gemini-ask "質問内容" --model "gemini-2.5-pro"
 ```
 
 利用可能なモデル：
