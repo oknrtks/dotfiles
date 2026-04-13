@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(ls *)",
+      "Bash(lsof *)",
+      "Bash(ls -R *)",
+      "Bash(pwd)",
+      "Bash(npm test *)",
+      "Bash(npm run test *)",
+      "Bash(pytest *)",
+      "Bash(uv run pytest *)",
+      "Bash(npm run lint *)",
+      "Bash(npm list *)",
+      "Bash(pip list *)",
+      "Bash(uv pip list *)",
+      "Bash(which *)",
+      "Bash(sed *)",
+      "mcp__serena__*",
+      "Bash(uv run python *)",
+      "Bash(stt *)",
+      "Bash(ffprobe *)",
+      "Bash(uvx git+https://github.com/oknrtks/gemini-ask *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.local/bin/claude-ntfy.py"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "voltagent-lang@voltagent-subagents": true,
+    "voltagent-research@voltagent-subagents": true
+  }
+}
