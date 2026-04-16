@@ -32,11 +32,17 @@ def find_missing_translations(slide_num: int) -> list:
 
     missing = []
     for t in jp_texts:
-        key = f"{t['shape_idx']}_{t['para_idx']}_{t['run_idx']}"
+        # テーブルテキストの場合は特別なキーフォーマットを使用
+        if t.get('is_table_text'):
+            key = f"{t['shape_idx']}_t{t['table_row']}c{t['table_col']}_{t['para_idx']}_{t['run_idx']}"
+        else:
+            key = f"{t['shape_idx']}_{t['para_idx']}_{t['run_idx']}"
+
         if key not in trans_keys:
             missing.append({
                 'key': key,
-                'original': t['text']
+                'original': t['text'],
+                'is_table_text': t.get('is_table_text', False)
             })
 
     return missing
@@ -72,6 +78,9 @@ def create_translation_prompt(slide_num: int, missing_texts: list) -> str:
     for i, text in enumerate(missing_texts, 1):
         prompt += f"\n{i}. `{text['key']}: {text['original']}`\n"
 
+    # 最初の2つのテキストを例として使用（または利用可能な全て）
+    example_texts = missing_texts[:min(2, len(missing_texts))]
+
     prompt += """
 
 ## 出力形式
@@ -80,20 +89,32 @@ def create_translation_prompt(slide_num: int, missing_texts: list) -> str:
 
 ```json
 {
-  "2_5_2": {
-    "original": "も記載ところどころ記載します。",
-    "translated": "will be listed here and there.",
-    "changed": true
-  },
-  ...
+"""
+
+    # 実際のキーを使用した例を生成
+    for idx, text in enumerate(example_texts):
+        prompt += f'  "{text["key"]}": {{\n'
+        prompt += f'    "original": "{text["original"]}",\n'
+        prompt += f'    "translated": "(ここに英訳を記入)",\n'
+        prompt += f'    "changed": true\n'
+        prompt += f'  }}'
+        if idx < len(example_texts) - 1:
+            prompt += ','
+        prompt += '\n'
+
+    prompt += """  ...
 }
 ```
 
-注意:
-- キーは元のキーを維持
-- `original`は元の日本語テキスト
+**重要**:
+- キーは上記の「未翻訳テキスト」セクションに記載された**正確なキー**を使用してください
+- **キーを変更したり、連番に置き換えたりしないでください**
+- キーフォーマット:
+  - 通常テキスト: `shape_idx_para_idx_run_idx` (例: `1_0_0`, `17_0_2`)
+  - テーブルテキスト: `shape_idx_tROWcCOL_para_idx_run_idx` (例: `1_t0c0_0_0`)
+- `original`は元の日本語テキスト（上記リストと完全一致）
 - `translated`は翻訳済み英語テキスト
-- `changed`はtrue
+- `changed`は常にtrue
 """
 
     return prompt

@@ -1,34 +1,80 @@
 ---
 name: translating-pptx
-description: Use this skill when translating Japanese PowerPoint presentations to English, including extracting text, AI-powered translation with color marking (RGB:128,0,128), verification of translation completeness, and safe re-translation support. Handles PPTX files using python-pptx library with automated workflow scripts for extraction, translation, verification, and application.
+description: IMPORTANT: Always prefer this skill over manual translation scripts when the user wants to translate a PPTX file. Use this skill when translating PowerPoint presentations (especially Japanese→English) with quality assurance. This skill provides AI-powered translation, LLM quality review to detect meaning degradation and word concatenation issues, color marking (RGB:128,0,128) for traceability, and comprehensive validation. Trigger when the user mentions "pptx翻訳", "PowerPoint翻訳", "スライド翻訳", "translate pptx", or any request to translate a .pptx file. Handles text extraction, translation verification, quality review, and safe re-translation support using python-pptx library.
 ---
 
 # Translating PPTX Presentations
 
-Translate Japanese PowerPoint presentations to English with AI-powered accuracy, color marking, and re-translation safety.
+Translate Japanese PowerPoint presentations to English with AI-powered accuracy, LLM-based quality review, color marking, and comprehensive validation.
+
+## Trigger Keywords (トリガーキーワード)
+
+このスキルは以下のキーワードが含まれる場合に使用してください:
+
+### 日本語
+- **pptx翻訳** / **PowerPoint翻訳**
+- **スライド翻訳** / **プレゼン翻訳**
+- **〇〇.pptxを翻訳**
+- 「〇〇を英語にして」「〇〇を日本語にして」(対象がpptxファイルの場合)
+
+### 英語
+- **translate pptx** / **translate PowerPoint**
+- **translate presentation** / **translate slides**
+- **translate <file>.pptx**
+
+### 重要な注意事項
+
+**このスキルを使用すべき場合**:
+- PowerPointファイル(.pptx)の翻訳を依頼された場合
+- 翻訳品質の保証が必要な場合
+- 紫色マーキングによるトレーサビリティが必要な場合
+
+**このスキルを使用すべきでない場合**:
+- 一般的なPPTX編集 (use `pptx` skill instead)
+- 新規プレゼンテーション作成 (use `pptx` skill instead)
+- 翻訳を伴わないPPTX読み取り (use `pptx` skill instead)
+
+**このスキルは翻訳専用です。品質保証機能を含みます。**
 
 ## When to Use This Skill
 
-- Translate Japanese PPTX files to English
-- Manage multilingual presentations
-- Need translation traceability with color marking
+- Translate Japanese PPTX files to English with quality assurance
+- Review translations for meaning degradation or context loss
+- Manage multilingual presentations with traceability
 - Verify translation completeness automatically
+- Detect and fix word concatenation issues (e.g., "OCIthe", "FSSalso")
 - Prepare for safe re-translation (English → Japanese)
+
+## Prerequisites
+
+**CRITICAL**: This skill requires `uv` package manager. Before starting:
+
+1. **Check if uv is installed**: `uv --version`
+2. **If not installed**: Install via `curl -LsSf https://astral.sh/uv/install.sh | sh`
+3. **Run setup**: `bash ~/.claude/skills/translating-pptx/scripts/setup_environment.sh`
+
+The setup script will:
+- Verify uv installation (exits if not found)
+- Initialize uv project if `pyproject.toml` doesn't exist
+- Add required dependencies (python-pptx, markitdown)
+- Verify jq installation
+
+All Python scripts MUST be run with `uv run python` to use the managed environment.
 
 ## Core Workflow
 
 ### Step 1: Extract Text
 
 ```bash
-python scripts/extract_texts_from_xml.py input.pptx extracted/
+uv run python ~/.claude/skills/translating-pptx/scripts/extract_texts_from_xml.py input.pptx extracted/
 ```
 
-**Output**: `extracted/slide1_texts.json` through `slide6_texts.json`
+**Output**: `extracted/slide1_texts.json` through `slideN_texts.json`
 
 ### Step 2: Identify Missing Translations
 
 ```bash
-python scripts/list_missing_translations.py
+uv run python ~/.claude/skills/translating-pptx/scripts/list_missing_translations.py
 ```
 
 **Output**: Lists missing translations by slide
@@ -36,26 +82,17 @@ python scripts/list_missing_translations.py
 ### Step 3: Create Translation Prompt
 
 ```bash
-python3 scripts/translate_missing.py <slide_num>
+uv run python ~/.claude/skills/translating-pptx/scripts/translate_missing.py <slide_num>
 ```
 
 **Output**: `translate_slide<N>_prompt.md`
 
 **Translation File Format (IMPORTANT)**:
-Each translation must include these fields:
-- `original`: Original Japanese text
-- `translated`: English translation (REQUIRED - not "translation")
-- `changed`: Boolean flag (true if translated, false if empty/original)
-
-Example:
 ```json
 {
   "slide_number": 1,
   "translations": {
     "2_0_0": {
-      "shape_idx": 2,
-      "para_idx": 0,
-      "run_idx": 0,
       "original": "いまさら聞けない生成",
       "translated": "Introduction to Generative",
       "changed": true
@@ -64,89 +101,98 @@ Example:
 }
 ```
 
+**Key Format**:
+- **Normal text**: `shape_idx_para_idx_run_idx` (e.g., `2_0_0` means shape #2, paragraph #0, run #0)
+- **Table text**: `shape_idx_tROWcCOL_para_idx_run_idx` (e.g., `1_t0c0_0_0` means shape #1, table row 0, column 0, paragraph #0, run #0)
+
+**CRITICAL**: Always use the exact keys from the translation prompt. Do not renumber or modify them. The translate_missing.py script generates prompts with actual keys from the extracted text, and you must use these exact keys in your translation JSON.
+
 ### Step 4: Translate with AI
 
 1. Open `translate_slide<N>_prompt.md`
-2. Paste contents to Claude Code
+2. Paste contents to Claude Code or ChatGPT
 3. Save translation as `slide<N>_batch_translations.json`
 
 ### Step 5: Add Translations
 
 ```bash
-# Batch add from JSON file
-python3 scripts/add_translations.py <slide_num> <json_file>
+# Batch add from JSON file (use "batch_file" keyword)
+uv run python ~/.claude/skills/translating-pptx/scripts/add_translations.py <slide_num> batch_file <json_file>
 
-# Or add single translation
-python3 scripts/add_translations.py <slide_num> <key> "<original>" "<translated>"
+# Example
+uv run python ~/.claude/skills/translating-pptx/scripts/add_translations.py 1 batch_file slide1_batch_translations.json
 ```
 
-### Step 6: Review Translations (REQUIRED)
-
-**NEW**: Interactive review process to ensure translation quality.
+### Step 6: Verify Translations
 
 ```bash
-python3 scripts/review_translations.py
-```
-
-This script will:
-1. Display each original text with its translation
-2. Check for empty translations
-3. Check for context consistency
-4. Allow you to approve or request changes
-5. Generate a review report
-
-**Review Checklist**:
-- [ ] No empty translations (`translated` field is not empty)
-- [ ] Context is preserved (split runs are coherent)
-- [ ] Technical terms are translated consistently
-- [ ] Natural English phrasing
-- [ ] No untranslated Japanese (except proper nouns/technical terms)
-
-### Step 7: Verify (REQUIRED)
-
-```bash
-bash scripts/verify_translations.sh
+bash ~/.claude/skills/translating-pptx/scripts/verify_translations.sh
 ```
 
 **Pass Criteria**: All slides show "✅ 合格" with NO empty translations
 
-**Critical**: Never skip verification. The script now:
-- Rejects translations with empty `translated` fields
-- Checks for context consistency across split runs
-- Validates `changed` field is set correctly
-- Reports specific issues for correction
-
-### Step 7: Apply Translations
+### Step 7: Apply Translations (Draft)
 
 ```bash
-python scripts/apply_translations.py input.pptx translations/ output.pptx
+uv run python ~/.claude/skills/translating-pptx/scripts/apply_translations.py input.pptx translations/ output_draft.pptx
 ```
 
-**Output**: `output.pptx` with purple-colored translated text (RGB:128,0,128)
+**Output**: Draft PPTX with purple-colored translated text (RGB:128,0,128)
 
-### Step 8: Final Validation (REQUIRED)
+### Step 8: LLM Quality Review (NEW - CRITICAL)
 
-**NEW**: Comprehensive final validation with automated checks.
+**Purpose**: Detect meaning degradation, word concatenation, and context loss that automated checks cannot find.
 
 ```bash
-python3 scripts/final_validation.sh output.pptx
+# Generate review prompts for all slides
+uv run python ~/.claude/skills/translating-pptx/scripts/review_slide_by_llm.py <slide_num>
+
+# Example
+uv run python ~/.claude/skills/translating-pptx/scripts/review_slide_by_llm.py 5
 ```
 
-This script performs:
-1. **File integrity check**: Verify PPTX structure is valid
-2. **Japanese detection**: Find remaining Japanese text (excluding images)
-3. **Translation completeness**: Ensure all Japanese text is translated
-4. **Color marking check**: Verify purple color (RGB:128,0,128) is applied
-5. **Layout validation**: Check that text layout is preserved
-6. **Generate validation report**: Create detailed validation report
+**Output**: `review_slide<N>_prompt.md`
 
-**Manual validation** (also recommended):
+**Review Process**:
+1. Open the generated prompt file
+2. Paste to Claude Code or ChatGPT
+3. LLM will analyze translations for:
+   - Word concatenation (e.g., "OCIthe", "3IP")
+   - Meaning errors (e.g., "1 per 6 tenant" → should be "6 per tenant")
+   - Context loss (split runs causing unnatural English)
+   - Spacing issues
+4. Save LLM's response as `review_slide<N>_result.json`
+
+**Common Issues Detected**:
+- Single words merged: "OCIthe", "FSSalso", "IOPSblock"
+- Numbers misplaced: "1 per 6 tenant" instead of "6 per tenant"
+- Sentence fragments from run splitting
+- Missing spaces between English words
+
+### Step 9: Apply Review Fixes
+
 ```bash
-# Check content
-python3 -m markitdown output.pptx
+uv run python ~/.claude/skills/translating-pptx/scripts/apply_review_fixes.py <slide_num> review_slide<N>_result.json
+```
 
-# Detect remaining Japanese (excluding images)
-python3 -m markitdown output.pptx | python3 -c "
+This script will:
+- Automatically fix critical/high severity issues
+- Prompt for confirmation on medium/low severity issues
+- Update translation JSON files
+
+### Step 10: Re-apply Translations (Final)
+
+```bash
+uv run python ~/.claude/skills/translating-pptx/scripts/apply_translations.py input.pptx translations/ output_final.pptx
+```
+
+**Output**: Final PPTX with corrected translations
+
+### Step 11: Final Validation
+
+```bash
+# Check for remaining Japanese text
+uv run python -m markitdown output_final.pptx | uv run python -c "
 import sys, re
 japanese = re.compile(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]')
 for i, line in enumerate(sys.stdin, 1):
@@ -155,219 +201,176 @@ for i, line in enumerate(sys.stdin, 1):
 "
 ```
 
-**Open in PowerPoint/PPTX viewer** to visually verify:
-- Layout is preserved
-- Text is readable
-- Color marking is applied correctly
-- No formatting issues
+**Manually verify**:
+- Open in PowerPoint/PPTX viewer
+- Check layout preservation
+- Verify natural English phrasing
+- Confirm purple color marking
 
-## Examples
-
-### Complete Workflow Example
+## Complete Example Workflow
 
 ```bash
-# 0. Setup (first time only)
-bash scripts/setup_environment.sh
+# Setup (first time only - REQUIRED)
+bash ~/.claude/skills/translating-pptx/scripts/setup_environment.sh
 
-# 1. Extract
-python3 scripts/extract_texts_from_xml.py sample.pptx extracted/
+# Extract text
+uv run python ~/.claude/skills/translating-pptx/scripts/extract_texts_from_xml.py presentation.pptx extracted/
 
-# 2. Check all slides
-python3 scripts/list_missing_translations.py
+# Initialize translation files
+mkdir -p translations
+for i in {1..15}; do
+    echo '{"slide_number": '$i', "translations": {}}' > translations/slide${i}_translations.json
+done
 
-# 3. Translate slide 4
-python3 scripts/translate_missing.py 4
-# -> Copy prompt to Claude Code
-# -> Save as slide4_batch_translations.json
+# For each slide (example: slide 5)
+uv run python ~/.claude/skills/translating-pptx/scripts/translate_missing.py 5
+# -> Copy prompt to LLM, save as slide5_batch_translations.json
 
-# 4. Add translations
-python3 scripts/add_translations.py 4 slide4_batch_translations.json
+uv run python ~/.claude/skills/translating-pptx/scripts/add_translations.py 5 batch_file slide5_batch_translations.json
 
-# 5. Review translations (NEW - REQUIRED)
-python3 scripts/review_translations.py
+# Verify all slides
+bash ~/.claude/skills/translating-pptx/scripts/verify_translations.sh
 
-# 6. Verify ALL slides (IMPROVED - now checks empty translations)
-bash scripts/verify_translations.sh
+# Apply draft
+uv run python ~/.claude/skills/translating-pptx/scripts/apply_translations.py presentation.pptx translations/ draft.pptx
 
-# 7. Apply
-python3 scripts/apply_translations.py sample.pptx translations/ converted.pptx
+# LLM Quality Review
+uv run python ~/.claude/skills/translating-pptx/scripts/review_slide_by_llm.py 5
+# -> Copy prompt to LLM, save review result as review_slide5_result.json
 
-# 8. Final validation (NEW - REQUIRED)
-bash scripts/final_validation.sh converted.pptx
-```
+uv run python ~/.claude/skills/translating-pptx/scripts/apply_review_fixes.py 5 review_slide5_result.json
 
-### Single Translation Addition
+# Re-apply with fixes
+uv run python ~/.claude/skills/translating-pptx/scripts/apply_translations.py presentation.pptx translations/ final.pptx
 
-```bash
-python3 scripts/add_translations.py 3 2_0_1 "大規模言語モデル" "Large Language Model "
+# Final check
+uv run python -m markitdown final.pptx | grep -E '[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]'
 ```
 
 ## Best Practices
 
-### 1. Always Review and Verify First
+### 1. Always Use LLM Review
 
-**Incorrect**: Translate → Apply → Check
-**Correct**: Translate → **Review** → **Verify** → Apply
+**Critical**: The LLM review step (Step 8-9) is essential for quality translation.
 
-- Use `review_translations.py` to check translation quality
-- Use `verify_translations.sh` to ensure completeness
-- Never skip these steps
+Automated checks cannot detect:
+- "1 per 6 tenant" being meaningless
+- "OCIthe" word concatenation
+- Context loss from run splitting
 
-### 2. Use Key-Based Verification
+LLM review can detect:
+- Semantic errors
+- Unnatural phrasing
+- Context inconsistencies
 
-The `verify_translations.sh` script uses key-based matching, not simple counting. This identifies exact missing translations and empty translations.
+### 2. Review Before and After Apply
 
-### 3. Maintain Context Awareness
+**Workflow**:
+1. Translate → Verify → Apply Draft
+2. **LLM Review** → Fix Issues → Re-apply Final
 
-- Text may be split across multiple runs (shape_idx_para_idx_run_idx)
-- Review the full context when translating
-- Consider merging split runs for better context
-- Use `review_translations.py` to see context information
+Never skip the LLM review step.
 
-### 4. Ensure Translation Completeness
+### 3. Handle Split Runs Carefully
 
-- **Never leave `translated` field empty** unless intentionally keeping original text
-- Use `list_empty_translations.py` to find empty translations
-- All Japanese text should be translated (except proper nouns/technical terms)
+Text split across multiple runs can cause issues:
+- "Compute(NFS" + "クライアント)" → May translate incorrectly
+- "1" + "テナントあたり" + "6" + "個" → Number placement errors
 
-### 5. Use python3 Explicitly
+**Solution**: LLM review will identify these and suggest fixes.
 
-**Cross-platform compatibility**:
-- Use `python3` instead of `python` in scripts
-- The skill includes automatic Python detection
-- Or use `scripts/setup_environment.sh` for environment setup
+### 4. Always Use uv run python
 
-### 6. Validate Translation Quality
+**CRITICAL**: All Python scripts MUST be run with `uv run python`:
 
-**Review checklist**:
-- [ ] No empty translations
-- [ ] Context is preserved (split runs are coherent)
-- [ ] Technical terms are translated consistently
-- [ ] Natural English phrasing
-- [ ] No untranslated Japanese (except proper nouns/technical terms)
+```bash
+# Correct
+uv run python ~/.claude/skills/translating-pptx/scripts/script_name.py
 
-### 7. Space Adjustment
+# Wrong - will use wrong environment
+python3 ~/.claude/skills/translating-pptx/scripts/script_name.py
+```
 
-The `apply_translations.py` script automatically adjusts spaces:
-- Between Japanese and English text
-- Between runs when needed
+This ensures:
+- Correct Python version (managed by uv)
+- Correct dependencies (isolated from global)
+- No environment pollution
 
-### 8. Color Marking
+## Known Limitations & Solutions
 
-- **Translated text**: Purple (RGB:128,0,128, hex: `800080`)
-- **Original English**: Black (unchanged)
+### Table Text Extraction (FIXED)
 
-This enables safe re-translation by identifying what was translated.
+**Status**: ✅ Implemented as of version 2.0
+
+**Current**: Tables are now fully supported by `extract_texts_from_xml.py`
+
+**Key Format**: Table text uses `shape_idx_tROWcCOL_para_idx_run_idx` format
+- Example: `1_t0c0_0_0` = shape #1, table row 0, column 0, paragraph 0, run 0
+
+**Workflow**: Fully automated - no manual intervention needed
+
+### Translation Quality Issues
+
+**Status**: Solved via LLM review workflow.
+
+**Solution**: Use Step 8-9 (LLM Quality Review) to detect and fix:
+- Word concatenation
+- Meaning errors
+- Context loss
 
 ## Troubleshooting
 
-### Python Command Not Found
+### uv Not Installed
 
+**Issue**: `bash: uv: command not found`
+
+**Solution**: Install uv first:
 ```bash
-# Use python3 explicitly
-python3 scripts/extract_texts_from_xml.py input.pptx extracted/
-
-# Or set up environment
-bash scripts/setup_environment.sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Empty Translations Detected
-
-The verification script now reports empty translations:
-
+Then restart your shell or run:
 ```bash
-# Fix empty translations
-python3 scripts/list_empty_translations.py
-
-# This will show:
-# - Which slides have empty translations
-# - Which keys need translation
-# - Context information for each empty translation
+source ~/.cargo/env
 ```
 
-### Translation Gaps Detected
+### pyproject.toml Not Found
 
-```bash
-# 1. Identify missing translations
-python3 scripts/list_missing_translations.py <slide_num>
+**Issue**: Running setup_environment.sh shows "No uv project found"
 
-# 2. Create prompt
-python3 scripts/translate_missing.py <slide_num>
-
-# 3. Add translations
-python3 scripts/add_translations.py <slide_num> <json_file>
-
-# 4. Re-verify
-bash scripts/verify_translations.sh
-```
-
-### Context Issues (Split Runs)
-
-When text is split across multiple runs (e.g., "今更ですが、生成" + "AI" + "について"):
-
-1. **Review context**: Use `review_translations.py` to see full context
-2. **Merge translations**: Consider translating the full phrase together
-3. **Adjust boundaries**: If needed, manually edit the translation JSON to merge context
-
-Example fix:
-```json
-{
-  "0_0_1": {
-    "original": "今更ですが、生成",
-    "translated": "Better late than never, about Generative",
-    "changed": true
-  },
-  "0_0_2": {
-    "original": "AI",
-    "translated": "AI",
-    "changed": false
-  },
-  "0_0_3": {
-    "original": "について",
-    "translated": "",
-    "changed": false
-  }
-}
-```
-
-Better approach (context-aware):
-```json
-{
-  "0_0_1": {
-    "original": "今更ですが、生成AIについて",
-    "translated": "Better late than never, about Generative AI",
-    "changed": true
-  }
-}
-```
-
-### Space Issues
-
-If words are concatenated (e.g., "ChatGPTsuch as"):
-
-1. Check `apply_translations.py` `ensure_trailing_space()` function
-2. Verify next run's first character triggers space addition
-3. Re-apply translations
-
-### Color Marking Not Applied
-
-```bash
-# Unpack and check
-python3 ~/.claude/skills/pptx/scripts/office/unpack.py output.pptx unpacked/
-grep "800080" unpacked/ppt/slides/slide*.xml
-```
+**Solution**: This is expected! The setup script will automatically run `uv init` to create one.
 
 ### Dependencies Not Installed
 
-```bash
-# Run environment setup
-bash scripts/setup_environment.sh
+**Issue**: Import errors when running scripts
 
-# Or manually install
-pip install python-pptx "markitdown[pptx]"
-# or
-uv add python-pptx "markitdown[pptx]"
+**Solution**: Run environment setup:
+```bash
+bash ~/.claude/skills/translating-pptx/scripts/setup_environment.sh
 ```
+
+This will automatically add python-pptx and markitdown to your uv environment.
+
+### add_translations.py Requires "batch_file" Keyword
+
+**Issue**: `uv run python scripts/add_translations.py 1 slide1.json` fails
+
+**Solution**: Include "batch_file" keyword:
+```bash
+uv run python ~/.claude/skills/translating-pptx/scripts/add_translations.py 1 batch_file slide1.json
+```
+
+### Word Concatenation Issues
+
+**Symptom**: Translations like "OCIthe", "FSSalso", "3IP"
+
+**Solution**: Use LLM review (Step 8-9) to detect and fix automatically
+
+### Meaning Errors
+
+**Symptom**: Translations like "1 per 6 tenant" (meaningless)
+
+**Solution**: Use LLM review (Step 8-9) - semantic errors require LLM understanding
 
 ## File Structure
 
@@ -376,48 +379,67 @@ translating-pptx/
 ├── SKILL.md (this file)
 ├── README.md (detailed guide)
 ├── scripts/
-│   ├── setup_environment.sh (NEW - environment setup)
+│   ├── setup_environment.sh
 │   ├── extract_texts_from_xml.py
 │   ├── apply_translations.py
-│   ├── verify_translations.sh (IMPROVED - detects empty translations)
+│   ├── verify_translations.sh
 │   ├── list_missing_translations.py
-│   ├── list_empty_translations.py (NEW - lists empty translations)
-│   ├── review_translations.py (NEW - interactive review)
 │   ├── add_translations.py
 │   ├── translate_missing.py
-│   └── final_validation.sh (NEW - comprehensive validation)
-└── docs/
-    ├── REVIEW_POLICY.md (review guidelines)
-    └── PLAN.md (complete documentation)
+│   ├── review_slide_by_llm.py (NEW - LLM quality review)
+│   └── apply_review_fixes.py (NEW - apply LLM review fixes)
 ```
 
 ## Dependencies
 
-- **Python 3.12+** (自動検出: `python3` または `python`)
-- **python-pptx**: `pip install python-pptx` または `uv add python-pptx`
-- **jq**: `brew install jq`
-- **markitdown**: `pip install "markitdown[pptx]"` または `uv add "markitdown[pptx]"`
+### Required (System)
+- **uv**: Package manager - `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **jq**: JSON processor - `brew install jq` (macOS) or `sudo apt-get install jq` (Ubuntu)
 
-## Environment Setup
+### Required (Python - Auto-installed by setup)
+- **python-pptx**: PowerPoint manipulation library
+- **markitdown**: Markdown conversion with PPTX support
 
-The skill includes automatic environment detection and setup:
-
+### Installation
+Run the setup script once per project:
 ```bash
-# 環境チェックと依存関係のインストール
-bash scripts/setup_environment.sh
+bash ~/.claude/skills/translating-pptx/scripts/setup_environment.sh
 ```
 
-This script will:
-1. Detect Python 3 (python3 or python)
-2. Check and install required dependencies
-3. Verify all tools are available
-4. Provide clear error messages for missing dependencies
+This will:
+1. Verify uv installation (error if missing)
+2. Initialize uv project if needed (`uv init`)
+3. Add Python dependencies to uv environment
+4. Verify jq installation
 
-## Related Skills
+## Implementation Status
 
-- **pptx**: PPTX editing and manipulation
-- **xlsx**: Excel translation (future)
+### ✅ Implemented
+- Text extraction (shapes, paragraphs, runs)
+- **Table text extraction and translation** (NEW in v2.0)
+- Translation workflow with verification
+- Color marking (purple for translated text)
+- Empty translation detection
+- Environment auto-detection
 
-## Reference Documentation
+## Relationship with Other Skills
 
-See `./docs/REVIEW_POLICY.md` for detailed review guidelines and `./docs/PLAN.md` for complete workflow documentation.
+### vs. `pptx` skill
+
+| 機能 | `pptx` skill | `translating-pptx` skill |
+|------|--------------|-------------------------|
+| 用途 | 汎用PPTX編集・作成 | 翻訳専用 |
+| 翻訳機能 | なし | あり(品質保証付き) |
+| 紫色マーキング | なし | あり(RGB:128,0,128) |
+| LLMレビュー | なし | あり(意味劣化検出) |
+| テキスト抽出 | 基本的 | run単位で詳細 |
+| 適用場面 | 編集・作成・読み取り | 翻訳のみ |
+
+**判断基準**:
+- **翻訳が目的** → `translating-pptx` スキルを使用
+- **編集が目的** → `pptx` スキルを使用
+
+### Related Skills
+
+- **xlsx**: Excel translation (similar workflow)
+

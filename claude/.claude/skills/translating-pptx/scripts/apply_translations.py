@@ -179,63 +179,98 @@ def apply_slide_translations(slide, slide_idx: int, translations_dir: Path, mark
 
     # スライドに対訳を適用
     for shape_idx, shape in enumerate(slide.shapes):
-        if not hasattr(shape, "text_frame"):
-            continue
+        # 通常のテキストフレームを処理
+        if hasattr(shape, "text_frame"):
+            for para_idx, para in enumerate(shape.text_frame.paragraphs):
+                # 次のrunのテキストを取得するために、全runのリストを作成
+                runs_list = list(para.runs)
 
-        for para_idx, para in enumerate(shape.text_frame.paragraphs):
-            # 次のrunのテキストを取得するために、全runのリストを作成
-            runs_list = list(para.runs)
+                for run_idx, run in enumerate(runs_list):
+                    # キーは {shape_idx}_{para_idx}_{run_idx}
+                    key = f"{shape_idx}_{para_idx}_{run_idx}"
 
-            for run_idx, run in enumerate(runs_list):
-                # キーは {shape_idx}_{para_idx}_{run_idx}
-                key = f"{shape_idx}_{para_idx}_{run_idx}"
-
-                # 次のrunのテキストを取得（スペース調整のため）
-                next_run_text = None
-                if run_idx + 1 < len(runs_list):
-                    next_key = f"{shape_idx}_{para_idx}_{run_idx + 1}"
-                    if next_key in trans_data['translations']:
-                        next_trans = trans_data['translations'][next_key]
-                        # 翻訳されているかに関わらず、次のrunのテキストを取得
-                        if next_trans['changed']:
-                            next_run_text = next_trans['translated']
+                    # 次のrunのテキストを取得（スペース調整のため）
+                    next_run_text = None
+                    if run_idx + 1 < len(runs_list):
+                        next_key = f"{shape_idx}_{para_idx}_{run_idx + 1}"
+                        if next_key in trans_data['translations']:
+                            next_trans = trans_data['translations'][next_key]
+                            # 翻訳されているかに関わらず、次のrunのテキストを取得
+                            if next_trans['changed']:
+                                next_run_text = next_trans['translated']
+                            else:
+                                next_run_text = next_trans['original']  # 元のテキスト（英語など）
                         else:
-                            next_run_text = next_trans['original']  # 元のテキスト（英語など）
-                    else:
-                        # 翻訳JSONにないrunは元のテキストを使用
-                        next_run_text = runs_list[run_idx + 1].text
+                            # 翻訳JSONにないrunは元のテキストを使用
+                            next_run_text = runs_list[run_idx + 1].text
 
-                if key in trans_data['translations']:
-                    trans_item = trans_data['translations'][key]
+                    if key in trans_data['translations']:
+                        trans_item = trans_data['translations'][key]
 
-                    # 翻訳されている場合は翻訳を適用
-                    if trans_item['changed']:
-                        apply_translation_to_run(
-                            run,
-                            trans_item['translated'],
-                            trans_item['changed'],
-                            marking_color,
-                            next_run_text
-                        )
-                        applied_count += 1
+                        # 翻訳されている場合は翻訳を適用
+                        if trans_item['changed']:
+                            apply_translation_to_run(
+                                run,
+                                trans_item['translated'],
+                                trans_item['changed'],
+                                marking_color,
+                                next_run_text
+                            )
+                            applied_count += 1
+                        else:
+                            # 翻訳されていないテキスト（元から英語など）でもスペース調整を適用
+                            adjusted_text = ensure_trailing_space(
+                                trans_item['original'],
+                                next_run_text
+                            )
+                            # テキストが変更された場合のみ更新
+                            if adjusted_text != run.text:
+                                run.text = adjusted_text
                     else:
-                        # 翻訳されていないテキスト（元から英語など）でもスペース調整を適用
+                        # 翻訳JSONにないrun（英語のみなど）でもスペース調整を適用
                         adjusted_text = ensure_trailing_space(
-                            trans_item['original'],
+                            run.text,
                             next_run_text
                         )
                         # テキストが変更された場合のみ更新
                         if adjusted_text != run.text:
                             run.text = adjusted_text
-                else:
-                    # 翻訳JSONにないrun（英語のみなど）でもスペース調整を適用
-                    adjusted_text = ensure_trailing_space(
-                        run.text,
-                        next_run_text
-                    )
-                    # テキストが変更された場合のみ更新
-                    if adjusted_text != run.text:
-                        run.text = adjusted_text
+
+        # テーブルを処理
+        if shape.has_table:
+            table = shape.table
+            for row_idx in range(len(table.rows)):
+                row = table.rows[row_idx]
+                for col_idx in range(len(row.cells)):
+                    cell = row.cells[col_idx]
+                    if cell.text_frame:
+                        for para_idx, para in enumerate(cell.text_frame.paragraphs):
+                            runs_list = list(para.runs)
+                            for run_idx, run in enumerate(runs_list):
+                                # テーブルテキストのキー: {shape_idx}_t{row}c{col}_{para_idx}_{run_idx}
+                                key = f"{shape_idx}_t{row_idx}c{col_idx}_{para_idx}_{run_idx}"
+
+                                # 次のrunのテキストを取得
+                                next_run_text = None
+                                if run_idx + 1 < len(runs_list):
+                                    next_key = f"{shape_idx}_t{row_idx}c{col_idx}_{para_idx}_{run_idx + 1}"
+                                    if next_key in trans_data['translations']:
+                                        next_trans = trans_data['translations'][next_key]
+                                        next_run_text = next_trans['translated'] if next_trans['changed'] else next_trans['original']
+                                    else:
+                                        next_run_text = runs_list[run_idx + 1].text
+
+                                if key in trans_data['translations']:
+                                    trans_item = trans_data['translations'][key]
+                                    if trans_item['changed']:
+                                        apply_translation_to_run(
+                                            run,
+                                            trans_item['translated'],
+                                            trans_item['changed'],
+                                            marking_color,
+                                            next_run_text
+                                        )
+                                        applied_count += 1
 
     print(f"Slide {slide_idx}: Applied {applied_count} translations")
 
