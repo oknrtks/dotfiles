@@ -1,0 +1,83 @@
+{
+  "test_cases": [
+    {
+      "id": "T1",
+      "description": "参照 .pptx + 同名 .pdf + Markdown を渡してプレゼン生成依頼",
+      "should_trigger": true,
+      "expected_behavior": "スキル発火、R1+R3+R4 を満たす .pptx 出力",
+      "prompts": [
+        "ref_template.pptx と ref_template.pdf を参照にして、content_sample.md の内容でプレゼン資料を作成してください",
+        "この参照資料(ref_template.pptx/ref_template.pdf)のスタイルで、以下のMarkdownからスライドを生成してほしい",
+        "Create a presentation based on ref_template.pptx (with ref_template.pdf) using content_sample.md"
+      ]
+    },
+    {
+      "id": "T2",
+      "description": "voice 継承を強調した生成依頼",
+      "should_trigger": true,
+      "expected_behavior": "スキル発火、PDF 画像を見た上で voice 継承判断",
+      "prompts": [
+        "ref_template.pptx/pdf を参照に、文体を引き継いでcontent_sample.mdからプレゼンを作ってください",
+        "この参照資料のトンマナで、同じ文体・構成テクスチャを維持してプレゼン化してほしい",
+        "参考資料の語り口やリード文のスタイルを踏襲して、新しいスライドを作成して"
+      ]
+    },
+    {
+      "id": "T3",
+      "description": "target_slide_count を指定した生成依頼",
+      "should_trigger": true,
+      "expected_behavior": "出力スライド数が指定値 ±2 以内",
+      "prompts": [
+        "ref_template.pptx/pdf を参照にして、8ページ程度でcontent_sample.mdのプレゼンを作成してください",
+        "この参照スタイルで6スライドにまとめてほしい"
+      ]
+    },
+    {
+      "id": "T4",
+      "description": "概念図を含む生成依頼(v1.0では image_placeholder)",
+      "should_trigger": true,
+      "expected_behavior": "shape プレースホルダが配置される",
+      "prompts": [
+        "ref_template.pptx/pdf を参照に、業務フロー図も含めたプレゼンを作成して",
+        "この参照スタイルで、概念図やフローチャートも入れてスライドを生成してほしい"
+      ]
+    },
+    {
+      "id": "T5",
+      "description": "参照資料なしの単純な pptx 作成依頼(非発火)",
+      "should_trigger": false,
+      "expected_behavior": "スキル発火しない(公式 pptx が担当)",
+      "prompts": [
+        "以下の内容でプレゼン資料を作ってください: DX推進プロジェクトの進捗報告",
+        "新しいスライドデッキを作成して。テーマはAI活用事例",
+        "PowerPointで5枚のスライドを作って",
+        "プレゼン資料を新規作成してください",
+        "シンプルなピッチデッキを作成して"
+      ]
+    },
+    {
+      "id": "T6",
+      "description": "Excel 貼り付け等スコープ外タスク(非発火)",
+      "should_trigger": false,
+      "expected_behavior": "スキル発火しない",
+      "prompts": [
+        "このExcelデータをスプレッドシートにまとめて",
+        "CSVファイルを読み込んでグラフ化して",
+        "Wordドキュメントを編集して",
+        "PDFを結合してください",
+        "このテキストファイルを整形して"
+      ]
+    },
+    {
+      "id": "T7",
+      "description": ".pptx のみ提示、同名 .pdf なし(発火→案内のみ)",
+      "should_trigger": true,
+      "expected_behavior": "スキル発火→pdf-required-notice.md を返して生成に進まない",
+      "prompts": [
+        "ref_template.pptx を参照にしてプレゼンを作成してください(PDFは無し)",
+        "この.pptxファイルのスタイルでスライドを生成して",
+        "template.pptx をベースに新しいデッキを作ってほしい"
+      ]
+    }
+  ]
+}
