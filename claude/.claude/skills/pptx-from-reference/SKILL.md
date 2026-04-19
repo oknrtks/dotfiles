@@ -84,7 +84,23 @@ mkdir -p _work
 
 ## Phase 2 — 目視確認編
 
+> **重要:** Phase 2開始前に必ず [`placeholder_templates.md`](./placeholder_templates.md) をReadツールで開くこと。
+
 詳細フォーマットは [slide-analysis-guide.md](./slide-analysis-guide.md) を参照。
+
+### Placeholderテキスト作成時の必須ルール
+
+**Phase 2開始前に必ず `placeholder_templates.md` をReadツールで開くこと。**
+
+#### 手順
+1. `placeholder_templates.md` をReadツールで開く
+2. 該当するテンプレート（本文/リード文/タイトル等）をコピー
+3. `#XXXXXX` `XXpt` 等のプレースホルダーを元スライドの実際の値に置換
+4. 独自のフォーマットを作成してはならない
+
+#### 禁止事項
+- 「【本文ブロック1】・ 箇条書き項目1」のような簡略フォーマットの作成
+- `placeholder_templates.md` にない構造の使用
 
 ### 2-1. 全スライド画像化
 
@@ -169,13 +185,124 @@ EOF
 
 詳細・コードスニペットは [template-building-guide.md](./template-building-guide.md) を参照。
 
-### 3-1. テンプレートファイル生成
+---
+
+## ⚠️ 禁止パターン（絶対に使用しないこと）
+
+### 1. text_frame.clear() の使用
+
+**絶対に禁止:** `text_frame.clear()` を使用すると、すべての書式情報（フォント・サイズ・色等）が失われます。
+
+```python
+# ❌ 絶対に禁止
+text_frame.clear()
+p.text = text  # これで書式が破壊される
+
+# ✓ 正しい実装
+from lib.core import set_text_preserve_style
+set_text_preserve_style(shape, text)
+```
+
+### 2. 独自実装の作成
+
+以下の機能は必ずライブラリ関数を使用すること：
+
+- **テキスト置換**: `set_text_preserve_style()`（書式保持）
+- **スライド削除**: `remove_slide()`（インデックスずれ防止）
+- **図領域代替**: `add_placeholder_rect()`（視認性確保）
+- **Shape検索**: `find_shape_by_id()`（一貫性確保）
+
+**理由:**
+- 書式保持の実装は複雑で、自作するとバグりやすい
+- 用意された関数はテスト済みで、正しく動作する
+- ライブラリ関数を使うことで品質が均一化される
+
+### 3. shape_idのハードコーディング
+
+スクリプト本体にshape_idを直接埋め込まず、ファイル先頭で変数として定義すること。
+
+```python
+# ❌ 禁止
+def process_slide(slide):
+    set_text_preserve_style(slide.shapes[141], "【タイトル】...")  # 固有値
+
+# ✓ 正しい
+SLIDE_CONFIG = {
+    0: {'title_id': 141},  # 変数として定義
+}
+
+def process_slide(slide, config):
+    shape = find_shape_by_id(slide, config['title_id'])
+    if shape:
+        set_text_preserve_style(shape, "【タイトル】...")
+```
+
+---
+
+### 3-1. テンプレートファイル生成とライブラリ設定
 
 ```bash
 cp <input.pptx> template_<input.pptx>
 ```
 
 `_work/build_template.py` を作成し、以降の操作をすべてこのスクリプトで実行する。logging でタイムスタンプ付きログを `_work/build_YYYYMMDD_HHMMSS.log` に出力する。
+
+**必ず以下の構造に従うこと:**
+
+```python
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+from pptx import Presentation
+from datetime import datetime
+import logging
+
+# ライブラリパスを設定
+sys.path.insert(0, str(Path.home() / '.claude' / 'skills' / 'pptx-from-reference'))
+from lib.core import set_text_preserve_style, remove_slide
+from lib.shapes import find_shape_by_id, add_placeholder_rect, remove_shape_by_id
+
+# ログ設定
+logging.basicConfig(
+    filename=f'_work/build_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log',
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s',
+)
+
+# ========================================
+# ファイル固有変数の定義
+# ========================================
+# layout_memo.md で特定したshape_idを変数化
+SLIDE_CONFIG = {
+    0: {'title_id': 3, 'subtitle_id': 4},
+    1: {'title_id': 141, 'lead_id': 155, 'body_ids': [2, 11]},
+    # ...
+}
+
+# ========================================
+# メイン処理
+# ========================================
+def main():
+    prs = Presentation('template_xxx.pptx')
+    
+    # ライブラリ関数を使用して処理
+    for slide_idx, config in SLIDE_CONFIG.items():
+        slide = prs.slides[slide_idx]
+        if 'title_id' in config:
+            shape = find_shape_by_id(slide, config['title_id'])
+            if shape:
+                set_text_preserve_style(shape, "【タイトル】...")
+    
+    prs.save('template_xxx.pptx')
+
+if __name__ == '__main__':
+    main()
+```
+
+**重要:**
+- 必ず `sys.path.insert()` でライブラリをインポートすること
+- ファイル固有値（shape_id等）はファイル先頭で変数として定義すること
+- 独自実装を書かず、必ずライブラリ関数を使用すること
 
 ### 3-2. タイトルの書き換え
 
@@ -188,6 +315,30 @@ cp <input.pptx> template_<input.pptx>
 選定しなかったスライドを**後ろのインデックスから順に**削除する（インデックスずれ防止）。
 
 ### 3-4. Placeholderテキストの設定
+
+> **重要:** build_template.py でPlaceholderテキストを設定する前に、以下の「挿入前レビュー」を実施すること。
+
+#### 挿入前レビュー（必須）
+
+build_template.py でPlaceholderテキストを設定する際、以下を自己確認：
+
+1. `placeholder_templates.md` をReadツールで確認済みか？
+2. 設定しようとしているテキストが、テンプレートの構造に従っているか？
+
+**チェック項目（例: 本文の場合）:**
+- 【本文】で始まっているか？
+- 「文字色: ... / サイズ: ...」の記載があるか？
+- 「強調方法: ...」の記載があるか？
+- 「文体: ...」の記載があるか？
+- 「構成: ...」の記載があるか？
+
+✓ 全てOK → コードに組み込む
+✗ 不足あり → placeholder_templates.md を再確認して修正
+
+**確認方法:**
+- コードを書く前に、設定するテキストをメモ帳等に一時的に書き出す
+- それが placeholder_templates.md の構造に従っているか確認
+- 従っていれば、そのテキストをコードに組み込む
 
 各shapeに役割とスタイル情報を含むPlaceholderテキストを設定する。書式は `set_text_preserve_style()` で保持する。
 
