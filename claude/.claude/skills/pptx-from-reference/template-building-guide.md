@@ -133,6 +133,56 @@ Placeholder設定前に各shapeのフォントサイズが以下の順序を満�
 
 ---
 
+## 表の処理
+
+表は以下のいずれかの方法で処理する:
+
+### 方法1: 構造保持+Placeholder化（推奨）
+
+データ性の強い表（日程表、進捗表、比較表等）の場合、表の構造を保持してセル内容のみをPlaceholder化する。
+
+```python
+from lib.tables import convert_table_to_placeholder
+
+# layout_memo.md で特定した表のshape_idを使用
+table_id = 123  # TODO: shape_idを設定
+success = convert_table_to_placeholder(slide, table_id)
+if success:
+    logging.info(f'Table shape_id={table_id} converted to placeholder')
+else:
+    logging.warning(f'Table shape_id={table_id} not found')
+```
+
+### 方法2: 削除→代替矩形
+
+装飾的な表、または複雑な結合セルが多い表の場合、削除して代替矩形に置換する。
+
+```python
+from lib.shapes import find_shape_by_id, remove_shape_by_id, add_placeholder_rect
+
+table_shape = find_shape_by_id(slide, table_id)
+if table_shape:
+    coords = (table_shape.left, table_shape.top, table_shape.width, table_shape.height)
+    remove_shape_by_id(slide, table_id)
+    add_placeholder_rect(
+        slide, *coords,
+        '【表領域】この箇所にスケジュール表・データ表を配置する\n'
+        '（元スライドではXXX表が使用されていた）'
+    )
+```
+
+### 判断基準
+
+| 条件 | 処理方法 |
+|------|---------|
+| データ性の強い表 | **構造保持+Placeholder化** |
+| 装飾的な表 | 削除→代替矩形 |
+| 複雑な結合セル | 削除→代替矩形 |
+
+**注意:** layout_memo.md で表の構造と処理方針を必ず記録すること。
+
+---
+
 ## 図・画像・グラフ領域の代替処理
 
 元スライドに画像・グラフ・複雑な図形群がある場合、削除して同位置・同サイズの長方形に置換する。
