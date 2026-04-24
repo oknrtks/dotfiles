@@ -1,6 +1,6 @@
 ---
-name: generating-commit-messages
-description: Generate Japanese commit messages by analyzing git staged changes. Use when the user asks for help with git commits, commit messages, or wants to commit staged changes.
+name: commit-msg
+description: ステージ済みの変更内容を解析し、一貫性のある日本語コミットメッセージを生成します。Use when the user asks for help with git commits, commit messages, or wants to commit staged changes. Generates messages in format "[L<level>] <type>: <scope>: <content>" with Japanese commit types (追加/変更/削除/修正/移動/文書). Triggers on "コミット", "commit", "コミットメッセージ", "/commit-msg".
 ---
 
 # Gitコミットメッセージ自動生成
@@ -43,10 +43,19 @@ description: Generate Japanese commit messages by analyzing git staged changes. 
 
 4. **ユーザー確認**
    - 生成されたメッセージを提示
-   - 実行、編集、キャンセルを選択
+   - AskUserQuestionツールで以下の2択を提示:
+     1. **実行する (推奨)** - このメッセージでコミットを作成
+     2. **編集する** - メッセージを修正してから実行
+   - デフォルト動作: 1番（実行）
+   - ユーザーは`1`または`Enter`で即座に実行、`2`で編集フローへ
 
 5. **コミット実行**
-   - 許可後に `git commit -m "<メッセージ>"` を実行
+   - 許可後に以下のフォーマットでコミットを実行:
+   ```bash
+   git commit -m "[L<レベル>] <型>: <スコープ>: <内容>
+
+   Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+   ```
 
 ## 自動判定ルール
 
@@ -78,3 +87,12 @@ description: Generate Japanese commit messages by analyzing git staged changes. 
 - Gitリポジトリ外での実行 → エラーメッセージ表示、スキル終了
 - バイナリファイルのみのステージング → 適切なメッセージを生成
 - 50ファイルを超える大量変更 → スコープを集約
+
+## 編集フロー
+
+ユーザーが「編集する」を選択した場合:
+
+1. 生成されたメッセージをベースとして提示
+2. ユーザーにカスタムメッセージの入力を促す
+3. 入力されたメッセージでコミットを実行
+4. Co-Authored-Byは自動的に付与
