@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VoiceProfile",
+  "type": "object",
+  "required": ["source_file", "sample_slide_count", "pdf_page_images", "raw_stats", "text_samples_per_slide"],
+  "properties": {
+    "source_file": {"type": "string"},
+    "sample_slide_count": {"type": "integer"},
+    "pdf_page_images": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "raw_stats": {
+      "type": "object",
+      "required": ["avg_chars_per_slide", "bullet_count_per_slide_median", "max_bullet_depth", "title_length_median", "shape_count_per_slide_median"],
+      "properties": {
+        "avg_chars_per_slide": {"type": "number"},
+        "bullet_count_per_slide_median": {"type": "number"},
+        "max_bullet_depth": {"type": "integer"},
+        "title_length_median": {"type": "number"},
+        "shape_count_per_slide_median": {"type": "number"}
+      }
+    },
+    "text_samples_per_slide": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["n", "title", "body_texts"],
+        "properties": {
+          "n": {"type": "integer"},
+          "title": {"type": "string"},
+          "body_texts": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

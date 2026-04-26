@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SlidePlan",
+  "type": "object",
+  "required": ["slides"],
+  "properties": {
+    "slides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["n", "layout_id", "kind", "title"],
+        "properties": {
+          "n": {"type": "integer", "minimum": 1},
+          "layout_id": {"type": "string", "pattern": "^slideLayout\\d+\\.xml$"},
+          "kind": {
+            "type": "string",
+            "enum": ["title", "section_header", "content", "two_pane", "comparison", "image_focus", "table", "chart", "closing"]
+          },
+          "title": {"type": "string"},
+          "subtitle": {"type": "string"},
+          "lead": {"type": "string"},
+          "body": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "panes": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": ["heading", "bullets"],
+              "properties": {
+                "heading": {"type": "string"},
+                "bullets": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            }
+          },
+          "table": {
+            "type": "object",
+            "properties": {
+              "headers": {"type": "array", "items": {"type": "string"}},
+              "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}}
+            }
+          },
+          "image_placeholder": {
+            "type": "object",
+            "properties": {
+              "label": {"type": "string"},
+              "bbox_in": {
+                "type": "object",
+                "required": ["x", "y", "w", "h"],
+                "properties": {
+                  "x": {"type": "number"},
+                  "y": {"type": "number"},
+                  "w": {"type": "number"},
+                  "h": {"type": "number"}
+                }
+              }
+            }
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    }
+  }
+}

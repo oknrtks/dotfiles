@@ -1,6 +1,6 @@
 #!/bin/bash
 # Environment Setup Script for translating-pptx Skill
-# This script checks and installs required dependencies
+# UV-first approach: ensures uv is installed and initializes project environment
 
 set -e
 
@@ -31,80 +31,60 @@ warning_msg() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
-# Detect Python
-echo "Step 1: Detecting Python..."
-PYTHON_CMD=""
+# Step 1: Check if uv is installed
+echo "Step 1: Checking for uv package manager..."
+if ! command -v uv &> /dev/null; then
+    echo ""
+    error_exit "uv is not installed. Please install uv first:
 
-if command -v python3 &> /dev/null; then
-    PYTHON_CMD="python3"
-    PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
-    success_msg "Found python3 (version $PYTHON_VERSION)"
-elif command -v python &> /dev/null; then
-    PYTHON_CMD="python"
-    PYTHON_VERSION=$(python --version 2>&1 | awk '{print $2}')
-    success_msg "Found python (version $PYTHON_VERSION)"
-else
-    error_exit "Python not found. Please install Python 3.12+ first."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    Or visit: https://docs.astral.sh/uv/getting-started/installation/
+
+    This skill requires uv to avoid polluting your global Python environment."
 fi
 
-# Check Python version
-PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
-PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
-
-if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 12 ]); then
-    error_exit "Python 3.12+ required, but found $PYTHON_VERSION"
-fi
-
-success_msg "Python version is compatible: $PYTHON_VERSION"
+UV_VERSION=$(uv --version 2>&1 | awk '{print $2}')
+success_msg "Found uv (version $UV_VERSION)"
 echo ""
 
-# Check if using uv
-echo "Step 2: Checking package manager..."
-if command -v uv &> /dev/null; then
-    success_msg "Found uv package manager"
-    PKG_MANAGER="uv"
-    PKG_INSTALL="uv add"
-    PKG_INSTALL_DEV="uv add --dev"
-elif command -v pip3 &> /dev/null; then
-    success_msg "Found pip3"
-    PKG_MANAGER="pip"
-    PKG_INSTALL="pip3 install"
-    PKG_INSTALL_DEV="pip3 install"
-elif command -v pip &> /dev/null; then
-    success_msg "Found pip"
-    PKG_MANAGER="pip"
-    PKG_INSTALL="pip install"
-    PKG_INSTALL_DEV="pip install"
+# Step 2: Check if we're in a uv project (pyproject.toml exists)
+echo "Step 2: Checking for uv project..."
+if [ ! -f "pyproject.toml" ] && [ ! -f "uv.lock" ]; then
+    warning_msg "No uv project found (pyproject.toml missing)"
+    echo ""
+    echo "Initializing uv project in current directory..."
+    uv init --no-readme
+    success_msg "Created pyproject.toml and initialized uv project"
 else
-    error_exit "No package manager found (uv, pip3, or pip)"
+    success_msg "Found existing uv project"
 fi
 echo ""
 
-# Check and install python-pptx
-echo "Step 3: Checking python-pptx..."
-if $PYTHON_CMD -c "import pptx" 2> /dev/null; then
-    PPTX_VERSION=$($PYTHON_CMD -c "import pptx; print(pptx.__version__)")
-    success_msg "python-pptx is installed (version $PPTX_VERSION)"
+# Step 3: Add required dependencies
+echo "Step 3: Installing dependencies..."
+
+# Check if python-pptx is in dependencies
+if uv pip list 2>/dev/null | grep -q "python-pptx"; then
+    success_msg "python-pptx is already installed"
 else
-    warning_msg "python-pptx not found. Installing..."
-    $PKG_INSTALL "python-pptx"
-    success_msg "python-pptx installed"
+    warning_msg "Adding python-pptx..."
+    uv add python-pptx
+    success_msg "python-pptx added"
+fi
+
+# Check if markitdown is in dependencies
+if uv pip list 2>/dev/null | grep -q "markitdown"; then
+    success_msg "markitdown is already installed"
+else
+    warning_msg "Adding markitdown with pptx support..."
+    uv add 'markitdown[pptx]'
+    success_msg "markitdown added"
 fi
 echo ""
 
-# Check and install markitdown
-echo "Step 4: Checking markitdown..."
-if $PYTHON_CMD -c "import markitdown" 2> /dev/null; then
-    success_msg "markitdown is installed"
-else
-    warning_msg "markitdown not found. Installing..."
-    $PKG_INSTALL '"markitdown[pptx]"'
-    success_msg "markitdown installed"
-fi
-echo ""
-
-# Check for jq
-echo "Step 5: Checking jq..."
+# Step 4: Check for jq (system dependency)
+echo "Step 4: Checking jq..."
 if command -v jq &> /dev/null; then
     success_msg "jq is installed"
 else
@@ -116,11 +96,17 @@ else
 fi
 echo ""
 
-# Make scripts executable
-echo "Step 6: Setting script permissions..."
+# Step 5: Make scripts executable
+echo "Step 5: Setting script permissions..."
 SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-for script in "$SCRIPT_DIR"/*.sh; do
+for script in "$SCRIPT_DIR"/*.py; do
     if [ -f "$script" ]; then
+        chmod +x "$script"
+        success_msg "Made $(basename "$script") executable"
+    fi
+done
+for script in "$SCRIPT_DIR"/*.sh; do
+    if [ -f "$script" ] && [ "$script" != "${BASH_SOURCE[0]}" ]; then
         chmod +x "$script"
         success_msg "Made $(basename "$script") executable"
     fi
@@ -133,15 +119,16 @@ echo -e "${GREEN}Environment Setup Complete!${NC}"
 echo "================================"
 echo ""
 echo "Environment Summary:"
-echo "  Python: $PYTHON_CMD ($PYTHON_VERSION)"
-echo "  Package Manager: $PKG_MANAGER"
+echo "  Package Manager: uv ($UV_VERSION)"
+echo "  Project: $(pwd)"
+echo "  Python: uv managed (use 'uv run python')"
 echo "  Scripts Location: $SCRIPT_DIR"
 echo ""
 echo "Next Steps:"
-echo "  1. Extract text: $PYTHON_CMD $SCRIPT_DIR/extract_texts_from_xml.py input.pptx extracted/"
-echo "  2. Check translations: $PYTHON_CMD $SCRIPT_DIR/list_missing_translations.py"
-echo "  3. Review translations: $PYTHON_CMD $SCRIPT_DIR/review_translations.py"
-echo "  4. Verify: bash $SCRIPT_DIR/verify_translations.sh"
-echo "  5. Apply: $PYTHON_CMD $SCRIPT_DIR/apply_translations.py input.pptx translations/ output.pptx"
-echo "  6. Validate: bash $SCRIPT_DIR/final_validation.sh output.pptx"
+echo "  1. Extract text: uv run python $SCRIPT_DIR/extract_texts_from_xml.py input.pptx extracted/"
+echo "  2. Check translations: uv run python $SCRIPT_DIR/list_missing_translations.py"
+echo "  3. Create prompts: uv run python $SCRIPT_DIR/translate_missing.py <slide_num>"
+echo "  4. Add translations: uv run python $SCRIPT_DIR/add_translations.py <slide_num> batch_file <json_file>"
+echo "  5. Verify: bash $SCRIPT_DIR/verify_translations.sh"
+echo "  6. Apply: uv run python $SCRIPT_DIR/apply_translations.py input.pptx translations/ output.pptx"
 echo ""

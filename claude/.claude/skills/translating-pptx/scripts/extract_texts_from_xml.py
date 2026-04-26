@@ -40,7 +40,7 @@ def has_japanese(text: str) -> bool:
 
 def extract_slide_texts(slide, slide_idx: int) -> dict:
     """
-    1つのスライドからテキストを抽出
+    1つのスライドからテキストを抽出（テーブル対応版）
 
     Args:
         slide: pptx.slide.Slideオブジェクト
@@ -52,19 +52,40 @@ def extract_slide_texts(slide, slide_idx: int) -> dict:
     texts = []
 
     for shape_idx, shape in enumerate(slide.shapes):
-        if not hasattr(shape, "text_frame"):
-            continue
+        # 通常のテキストフレームを処理
+        if hasattr(shape, "text_frame"):
+            for para_idx, para in enumerate(shape.text_frame.paragraphs):
+                for run_idx, run in enumerate(para.runs):
+                    if run.text.strip():
+                        texts.append({
+                            'shape_idx': shape_idx,
+                            'para_idx': para_idx,
+                            'run_idx': run_idx,
+                            'text': run.text,
+                            'has_japanese': has_japanese(run.text)
+                        })
 
-        for para_idx, para in enumerate(shape.text_frame.paragraphs):
-            for run_idx, run in enumerate(para.runs):
-                if run.text.strip():
-                    texts.append({
-                        'shape_idx': shape_idx,
-                        'para_idx': para_idx,
-                        'run_idx': run_idx,
-                        'text': run.text,
-                        'has_japanese': has_japanese(run.text)
-                    })
+        # テーブルを処理
+        if shape.has_table:
+            table = shape.table
+            for row_idx in range(len(table.rows)):
+                row = table.rows[row_idx]
+                for col_idx in range(len(row.cells)):
+                    cell = row.cells[col_idx]
+                    if cell.text_frame:
+                        for para_idx, para in enumerate(cell.text_frame.paragraphs):
+                            for run_idx, run in enumerate(para.runs):
+                                if run.text.strip():
+                                    texts.append({
+                                        'shape_idx': shape_idx,
+                                        'table_row': row_idx,
+                                        'table_col': col_idx,
+                                        'para_idx': para_idx,
+                                        'run_idx': run_idx,
+                                        'text': run.text,
+                                        'has_japanese': has_japanese(run.text),
+                                        'is_table_text': True
+                                    })
 
     return {
         'slide_number': slide_idx,
