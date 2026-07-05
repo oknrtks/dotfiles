@@ -10,27 +10,28 @@ OpenAI互換APIエンドポイント（`https://api.z.ai/api/anthropic`）経由
 
 ## 前提条件の確認
 
-設定開始前に以下を確認する：
+z.ai設定は**2層構造**で管理される。設定開始前にそれぞれの状態を確認する。
 
-1. **API認証情報が設定済みか**:
-   ```bash
-   env | grep -E "ANTHROPIC_BASE_URL|ANTHROPIC_AUTH_TOKEN"
-   ```
-   - `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` が設定されていること
-   - `ANTHROPIC_AUTH_TOKEN` が設定されていること
-   - 未設定の場合は、ユーザーにz.ai（https://z.ai ）でのAPIキー取得を案内する
+### 接続層: API認証情報（シェル環境変数）
+```bash
+env | grep -E "ANTHROPIC_BASE_URL|ANTHROPIC_AUTH_TOKEN"
+```
+- `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic`
+- `ANTHROPIC_AUTH_TOKEN`（z.aiのAPIキー）
 
-2. **APIキーが未設定の場合**:
-   - z.aiでアカウント作成後にAPIキーを取得
-   - `settings.json` の `env` セクションに追加:
-     ```json
-     {
-       "env": {
-         "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-         "ANTHROPIC_AUTH_TOKEN": "YOUR_ZAI_API_KEY"
-       }
-     }
-     ```
+本環境では `~/.bash_local` に設定され `.bashrc` 経由で読み込まれる（全bashターミナルで有効）:
+```bash
+export ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+export Z_AI_API_KEY=<your-key>
+export ANTHROPIC_AUTH_TOKEN=$Z_AI_API_KEY
+```
+未設定の場合はユーザーにz.ai（https://z.ai ）でのAPIキー取得を案内し、`~/.bash_local` に追記する。
+
+### モデル層: モデルマッピング（Claude Code設定）
+```bash
+grep "ANTHROPIC_DEFAULT_OPUS_MODEL" ~/.claude/settings.json
+```
+モデルマッピング（`ANTHROPIC_DEFAULT_*_MODEL`）は接続層とは別物。**これがないと `/model` リストにGLMモデルが表示されない**（接続先がz.aiでも表示はデフォルトのOpus/Sonnet/Haikuになる）。
 
 ## 実行手順
 
@@ -55,10 +56,10 @@ uvx git+https://github.com/oknrtks/gemini-ask "z.ai（Zhipu AI）のGLMモデル
 既存の設定ファイルを確認し、上書きしないようにする：
 
 ```bash
-# プロジェクト設定（推奨：dotfiles管理）
-cat .claude/settings.local.json 2>/dev/null
-# グローバル設定
+# グローバル設定（推奨・全ディレクトリで有効）
 cat ~/.claude/settings.json 2>/dev/null
+# プロジェクト固有設定（必要な場合のみ）
+cat .claude/settings.local.json 2>/dev/null
 ```
 
 モデル設定が既存の`env`セクションにないか確認。既にある場合は最新情報に更新する。
@@ -76,11 +77,11 @@ Geminiの調査結果を基に、Claudeの3エイリアスをGLMモデルにマ�
 
 ### ステップ4: 設定ファイルの更新
 
-**更新対象ファイルの優先順位**:
-1. プロジェクトの `.claude/settings.local.json`（推奨・dotfiles管理される）
-2. グローバルの `~/.claude/settings.json`（全プロジェクト共通にしたい場合）
+**更新対象ファイル**:
+- **グローバルの `~/.claude/settings.json`（推奨）**: 全ディレクトリ・全プロジェクトで `/model` リストにGLMが表示される。dotfilesでバインドマウント管理されている場合が多く、編集が即座に両方へ反映される。
+- プロジェクトの `.claude/settings.local.json`: そのプロジェクト限定で使いたい場合のみ（別ディレクトリでは読み込まれない点に注意）。
 
-`permissions`など既存の設定を**保持したまま**、`env`セクションに以下を追記する（`<最新フラッグシップ>`等はステップ1の調査結果で置換）：
+`permissions`など既存の設定を**保持したまま**、`env`セクションに以下を追記する（`<フラッグシップ>`等はステップ1の調査結果で置換）：
 
 ```json
 {
@@ -120,6 +121,11 @@ Geminiの調査結果を基に、Claudeの3エイリアスをGLMモデルにマ�
 3. **動作確認**: 短い応答をリクエストして、GLMモデルが応答することを確認
 
 ## トラブルシューティング
+
+### `/model` リストにGLMモデルが表示されない
+- **原因（最頻出）**: モデルマッピングがプロジェクト固有設定（`.claude/settings.local.json`）にあり、別ディレクトリでClaude Codeを起動したため読み込まれていない。
+- **対策**: `~/.claude/settings.json`（グローバル）にモデルマッピングを移動・追加する。
+- 接続先（z.ai）は `~/.bash_local` のBASE_URL/TOKENで有効でも、モデルマッピングがないと `/model` の表示はデフォルト（Opus/Sonnet/Haiku）になる。2層構造の分離に注意。
 
 ### 設定が反映されない
 - Claude Codeを完全に再起動したか確認

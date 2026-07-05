@@ -54,20 +54,30 @@ Claude Codeは3つのモデルエイリアスを内部で使い分ける：
 
 ## 設定ファイルの場所と構造
 
-### 設定ファイルの優先順位（Claude Code）
-1. `~/.claude/settings.json`（グローバル・全プロジェクト）
+### 2層構造（重要）
+z.aiをClaude Codeで使うには**接続層**と**モデル層**の2つを設定する必要がある。これらは別の場所で管理される:
+
+| 層 | 役割 | 設定場所 | 効果範囲 |
+|---|---|---|---|
+| 接続層 | z.aiへの接続（BASE_URL/TOKEN） | `~/.bash_local`（シェル環境変数） | 全bashターミナル |
+| モデル層 | `/model`リストへのGLM表示（DEFAULT_*_MODEL） | `~/.claude/settings.json`（Claude Code設定） | 設定した階層 |
+
+**よくあるトラブル**: 接続層だけ設定し、モデル層をプロジェクト固有設定に置くと、別ディレクトリで `/model` リストにGLMが出ない（接続はz.aiでも表示はデフォルトのOpus/Sonnet/Haikuになる）。
+
+### モデル層の設定ファイル優先順位（Claude Code）
+1. `~/.claude/settings.json`（グローバル・**推奨**・全プロジェクト・全ディレクトリで有効）
 2. `<project>/.claude/settings.json`（プロジェクト共有・git管理）
 3. `<project>/.claude/settings.local.json`（プロジェクト固有・通常git管理外）
 
-**推奨**: dotfilesリポジトリで管理する場合、`.claude/settings.local.json` を使用。
+**推奨**: GLMを日常的に使うなら `~/.claude/settings.json`（グローバル）に設定し、全ディレクトリで有効にする。
 
-### dotfiles環境の構造
-この環境では `~/.claude/skills` が dotfilesのスキルディレクトリとバインドマウントされている：
+### dotfiles環境の構造（バインドマウント）
+本環境では `~/.claude/` 配下の一部が dotfilesとバインドマウント（同一inode）されており、編集が即座に両方へ反映される:
 ```
-/home/ubuntu/.claude/skills/ ←→ /home/ubuntu/dotfiles/claude/.claude/skills/
-（同じinodeを共有）
+~/.claude/skills/         ←→ dotfiles/claude/.claude/skills/         （スキル）
+~/.claude/settings.json   ←→ dotfiles/claude/.claude/settings.json   （グローバル設定）
 ```
-スキルをdotfiles側に作成すると、即座に `~/.claude/skills` から認識される。
+スキルや設定をdotfiles側で編集すると、即座に `~/.claude` から認識・反映され、git管理もされる。
 
 ## 設定例（テンプレート）
 
@@ -112,3 +122,4 @@ Claude Codeは3つのモデルエイリアスを内部で使い分ける：
 ## 更新履歴
 
 - 2026-07-05: 初版作成（GLM-5.2 / GLM-4.7 / GLM-4.5-Air で構成）
+- 2026-07-05: 2層構造（接続層=`.bash_local`／モデル層=`settings.json`）を明記。モデルマッピングをグローバル `~/.claude/settings.json` に置くことを推奨に変更（別ディレクトリで `/model` にGLMが出ない問題の対策）。`settings.json` のバインドマウント構造も追記
