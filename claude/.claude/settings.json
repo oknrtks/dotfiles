@@ -1,4 +1,15 @@
 {
+  "env": {
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-5.2",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME": "GLM-5.2 via Z.ai",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL_DESCRIPTION": "Zhipu AI's flagship model for long-horizon tasks with 1M context",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME": "GLM-4.7 via Z.ai",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL_DESCRIPTION": "Zhipu AI's balanced model for daily coding tasks",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME": "GLM-4.5-Air via Z.ai",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL_DESCRIPTION": "Zhipu AI's lightweight model for simple tasks"
+  },
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -24,7 +35,19 @@
       "Bash(uvx git+https://github.com/oknrtks/gemini-ask *)"
     ]
   },
+  "model": "opus",
   "hooks": {
+    "Notification": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.local/bin/claude-ntfy.py"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",
@@ -40,5 +63,6 @@
   "enabledPlugins": {
     "voltagent-lang@voltagent-subagents": true,
     "voltagent-research@voltagent-subagents": true
-  }
+  },
+  "theme": "dark"
 }
